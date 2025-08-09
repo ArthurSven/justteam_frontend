@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import {HttpClient, HttpErrorResponse} from "@angular/common/http";
+import {HttpClient} from "@angular/common/http";
+import { HttpErrorResponse, provideHttpClient, withFetch } from '@angular/common/http';
 import {BehaviorSubject, catchError, Observable, tap, throwError} from "rxjs";
 import { CookieService } from "ngx-cookie-service";
 import {Router} from "@angular/router";
@@ -29,7 +30,7 @@ export class AuthServiceService {
 
   private currentUserSubject: BehaviorSubject<UserAuthResponse | null>;
   public currentUser: Observable<UserAuthResponse | null>;
-  private baseUrl = 'http://localhost:8080/api/v1/user/'
+  private baseUrl = 'http://localhost:8081/api/v1/user'
 
   constructor(
     private http: HttpClient,
@@ -41,6 +42,14 @@ export class AuthServiceService {
     );
     this.currentUser = this.currentUserSubject.asObservable();
 
+  }
+
+  getUserRole(): string | null {
+    return this.currentUserValue?.role || null
+  }
+
+  hasRole(role: string): boolean {
+    return this.currentUserValue?.role === role;
   }
 
   public get currentUserValue(): UserAuthResponse | null {

@@ -3,7 +3,7 @@ import { Router, RouterLink, RouterModule } from '@angular/router';
 import {CommonModule} from "@angular/common";
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from "@angular/forms";
 import {CookieService} from "ngx-cookie-service";
-import {AuthServiceService} from "../../services/auth-service.service";
+import {AuthServiceService, UserAuthRequest} from "../../services/auth-service.service";
 
 @Component({
   selector: 'app-login',
@@ -34,8 +34,27 @@ export class LoginComponent {
 
   onButtonClick() {
     if (this.loginForm.valid) {
-      username: this.loginForm.value.username
-      password: this.loginForm.value.password
+      const user: UserAuthRequest = {
+        username: this.loginForm.value.username,
+        password: this.loginForm.value.password
+      }
+
+      this.authService.login(user).subscribe({
+        next: () => {
+          console.log('Login successful');
+          this.message = 'Login successful!';
+          this.alertClass = 'bg-green-600'
+
+          this.router.navigate(['/adminlayout'])
+        },
+        error: (error) => {
+          console.error('Login failed', error);
+          this.message = 'Username or Password is wrong';
+          this.alertClass = 'bg-red-600';
+        }
+      })
+
     }
+
   }
 }
