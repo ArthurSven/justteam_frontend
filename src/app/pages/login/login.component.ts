@@ -22,7 +22,6 @@ export class LoginComponent {
   constructor(
     private fb: FormBuilder,
     private authService: AuthServiceService,
-    private cookieService: CookieService,
     private router: Router
   ) {
 
@@ -41,11 +40,10 @@ export class LoginComponent {
 
       this.authService.login(user).subscribe({
         next: () => {
-          console.log('Login successful');
           this.message = 'Login successful!';
           this.alertClass = 'bg-green-600'
 
-          this.router.navigate(['/adminlayout'])
+          this.router.navigate(['/adminlayout']);
         },
         error: (error) => {
           console.error('Login failed', error);
@@ -53,8 +51,6 @@ export class LoginComponent {
           this.alertClass = 'bg-red-600';
         }
       })
-
     }
-
   }
 }

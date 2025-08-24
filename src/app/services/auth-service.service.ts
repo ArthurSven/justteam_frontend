@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import {HttpClient} from "@angular/common/http";
+import {HttpClient, HttpHeaders} from "@angular/common/http";
 import { HttpErrorResponse, provideHttpClient, withFetch } from '@angular/common/http';
 import {BehaviorSubject, catchError, Observable, tap, throwError} from "rxjs";
 import { CookieService } from "ngx-cookie-service";
@@ -28,8 +28,12 @@ export interface UserAuthResponse {
 
 export class AuthServiceService {
 
-  private currentUserSubject: BehaviorSubject<UserAuthResponse | null>;
-  public currentUser: Observable<UserAuthResponse | null>;
+  public currentUserSubject = new BehaviorSubject<UserAuthResponse | null>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+
+  private authCheckComplete = new BehaviorSubject<boolean>(false);
+  public authCheckComplete$ = this.authCheckComplete.asObservable();
+
   private baseUrl = 'http://localhost:8081/api/v1/user'
 
   constructor(
@@ -37,44 +41,48 @@ export class AuthServiceService {
     private cookieService: CookieService,
     private router: Router) {
 
-    this.currentUserSubject = new BehaviorSubject<UserAuthResponse | null>(
-      this.getUserFromCookies()
+    this.initializeAuthState()
+
+  }
+
+  private initializeAuthState(): void {
+    this.checkAuthStatus().subscribe({
+      next: (user) => {
+        console.log('Auth initialization successful:', user);
+        this.authCheckComplete.next(true);
+      },
+      error: (error) => {
+        console.log('Auth initialization completed - user not authenticated');
+        this.authCheckComplete.next(true);
+      }
+    });
+  }
+
+  private checkAuthStatus(): Observable<UserAuthResponse> {
+    return this.http.get<UserAuthResponse>(`${this.baseUrl}/auth-user`, {
+      withCredentials: true
+    }).pipe(
+      tap(user => {
+        console.log('User is authenticated', user);
+        this.currentUserSubject.next(user);
+      }),
+      catchError(error => {
+        console.log('User is not authenticated');
+        this.currentUserSubject.next(null);
+        return throwError(() => error);
+      })
     );
-    this.currentUser = this.currentUserSubject.asObservable();
-
   }
 
-  getUserRole(): string | null {
-    return this.currentUserValue?.role || null
-  }
 
-  hasRole(role: string): boolean {
-    return this.currentUserValue?.role === role;
-  }
-
-  public get currentUserValue(): UserAuthResponse | null {
-    return this.currentUserSubject.value;
-  }
-
-  private getUserFromCookies(): UserAuthResponse | null {
-    const userData = this.cookieService.get('currentUser');
-    return userData ? JSON.parse(userData) : null;
-  }
 
   login(credentials: UserAuthRequest): Observable<UserAuthResponse> {
     return this.http.post<UserAuthResponse>(`${this.baseUrl}/login`, credentials, {
-      withCredentials: true // This is crucial for cookies to be handled properly
+      withCredentials: true
     }).pipe(
       tap((response) => {
-        // The token is in the HTTP-only cookie, not in the response body
-        const userData = {
-          username: response.username,
-          message: response.message,
-          role: response.role,
-          token: null // Token is in HTTP-only cookie
-        };
-        this.cookieService.set('currentUser', JSON.stringify(userData));
-        this.currentUserSubject.next(userData);
+        this.checkAuthStatus().subscribe();
+
       }),
       catchError(this.handleError)
     );
@@ -86,12 +94,44 @@ export class AuthServiceService {
     );
   }
 
-  logout() {
-    // Clear the HTTP-only cookie by setting an expired cookie
-    document.cookie = 'jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    this.cookieService.delete('currentUser');
+  logout(): Observable<any> {
+    return this.http.post(`${this.baseUrl}/logout`, {}, { withCredentials: true, responseType: 'text' }).pipe(
+      tap(() => {
+        this.clearFrontendState();
+      }),
+      catchError((error) => {
+        console.error('Logout failed:', error);
+        this.clearFrontendState(); // Still clear state even if API call fails
+        return throwError(() => error);
+      })
+    );
+  }
+
+  performLogout(): void {
+    this.logout().subscribe({
+      next: (response) => {
+        console.log('Logout successful:', response);
+        this.router.navigate(['/']);
+      },
+      error: (error) => {
+        console.error('Logout error:', error);
+        this.router.navigate(['/']);
+      }
+    });
+  }
+
+  public clearFrontendState(): void {
     this.currentUserSubject.next(null);
-    this.router.navigate(['/login']);
+  }
+
+  isAuthenticated(): boolean {
+    return this.currentUserSubject.value !== null;
+  }
+  getUserRole(): string | null {
+    return this.currentUserSubject.value?.role || null;
+  }
+  isAdmin(): boolean {
+    return this.getUserRole() === 'Admin';
   }
 
   private handleError(error: HttpErrorResponse) {
@@ -106,13 +146,7 @@ export class AuthServiceService {
     return throwError(() => new Error(errorMessage));
   }
 
-  // Add this method to check authentication status
-  isAuthenticated(): boolean {
-    return !!this.currentUserValue;
-  }
-
-  // Add this method to get the JWT cookie (though it's HTTP-only)
-  getAuthToken(): string | null {
-    return this.cookieService.get('jwt') || null;
+  isAuthCheckComplete(): boolean {
+    return this.authCheckComplete.value;
   }
 }
