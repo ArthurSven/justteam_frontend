@@ -1,0 +1,21 @@
+@if(show) {
+  <div
+    class="fixed bottom-4 right-4 flex items-center text-white px-4 py-3 rounded shadow-md"
+    [ngClass]="{'bg-green-600': type === 'success', 'bg-red-600': type === 'error'}"
+    role="alert"
+    aria-live="assertive"
+    aria-atomic="true">
+
+    <div class="flex-1">
+      {{ message }}
+    </div>
+
+    <button type="button"
+            class="ml-4 text-white hover:text-gray-200"
+            (click)="show = false"
+            aria-label="Close">
+      ✖
+    </button>
+  </div>
+}
+
