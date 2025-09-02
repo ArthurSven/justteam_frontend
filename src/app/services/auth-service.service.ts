@@ -38,7 +38,6 @@ export class AuthServiceService {
 
   constructor(
     private http: HttpClient,
-    private cookieService: CookieService,
     private router: Router) {
 
     this.initializeAuthState()
@@ -84,12 +83,6 @@ export class AuthServiceService {
         this.checkAuthStatus().subscribe();
 
       }),
-      catchError(this.handleError)
-    );
-  }
-
-  register(userData: any): Observable<UserAuthResponse> {
-    return this.http.post<UserAuthResponse>(`${this.baseUrl}/register`, userData).pipe(
       catchError(this.handleError)
     );
   }

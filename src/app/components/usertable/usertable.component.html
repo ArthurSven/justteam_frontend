@@ -1,4 +1,14 @@
 <div class="relative overflow-hidden">
+  @if (isLoading) {
+      <!-- Loading overlay -->
+      <div class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+        <div class="text-center">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p class="mt-2 text-gray-600">Loading users...</p>
+        </div>
+      </div>
+
+  }
   <!-- Table -->
   <div class="overflow-x-auto">
     <table class="w-full">
@@ -34,6 +44,65 @@
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
       <!-- User data will be dynamically inserted here -->
+        @for (user of users; track user.userId; let i = $index) {
+      <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            <input
+              type="checkbox"
+              [checked]="selectedUsers.has(user.userId)"
+              (change)="toggleUserSelection(user.userId)"
+              class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+          </div>
+        </td>
+        <td class="px-6 py-4">
+          <div class="flex items-center">
+            <div class="h-10 w-10 flex-shrink-0">
+              <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
+                {{ user.firstname?.charAt(0) }}{{ user.lastname?.charAt(0) }}
+              </div>
+            </div>
+            <div class="ml-4">
+              <div class="font-medium text-gray-900">{{ user.firstname }} {{ user.lastname }}</div>
+              <div class="text-sm text-gray-500">DOB: {{ user.dob | date:'shortDate' }}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4">
+          <div class="text-sm text-gray-900">{{ user.email }}</div>
+          <div class="text-sm text-gray-500">{{ user.username }}</div>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-900">{{ user.dept }}</td>
+        <td class="px-6 py-4 text-sm text-gray-900">{{ user.position }}</td>
+        <td class="px-6 py-4 text-sm text-gray-900">
+          ${{ user.salary | number }}
+        </td>
+        <td class="px-6 py-4">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  [ngClass]="{
+                    'bg-green-100 text-green-800': user.role === 'Admin',
+                    'bg-blue-100 text-blue-800': user.role === 'User'
+                  }">
+              {{ user.role }}
+            </span>
+        </td>
+        <td class="px-6 py-4 text-sm font-medium">
+          <div class="flex space-x-2">
+            <button class="text-blue-600 hover:text-blue-900">Edit</button>
+            <button class="text-red-600 hover:text-red-900">Delete</button>
+          </div>
+        </td>
+      </tr>
+        }
+      <!-- Empty state -->
+        @if (users.length === 0 && !isLoading) {
+          <tr>
+            <td colspan="8" class="px-6 py-8 text-center">
+              <div class="text-gray-500">No users found.</div>
+            </td>
+          </tr>
+        }
+      <!--end of user insert-->
       </tbody>
     </table>
   </div>
@@ -43,32 +112,57 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="text-sm text-gray-700">Show</span>
-        <select class="border border-gray-300 rounded px-2 py-1 text-sm">
-          <option>10</option>
-          <option>25</option>
-          <option>50</option>
+        <select
+          [(ngModel)]="pageSize"
+          (change)="onPageSizeChange(pageSize)"
+          class="border border-gray-300 rounded px-2 py-1 text-sm">
+          <option [value]="5">5</option>
+          <option [value]="10">10</option>
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
         </select>
         <span class="text-sm text-gray-700">entries</span>
+
+        <!-- Selected count -->
+        @if (selectedUsers.size > 0) {
+          <span class="text-sm text-blue-600 ml-4">
+            {{ selectedUsers.size }} selected
+          </span>
+        }
       </div>
 
       <div class="flex items-center space-x-2">
-        <span class="text-sm text-gray-700">1-10 of 84 results</span>
+        <span class="text-sm text-gray-700">
+          {{ getDisplayRange().start }}-{{ getDisplayRange().end }} of {{ totalElements }} results
+        </span>
         <div class="flex items-center space-x-1">
-          <button class="p-1 rounded border border-gray-300 hover:bg-gray-50">
+          <!-- Previous button -->
+          <button
+            (click)="onPageChange(currentPage - 1)"
+            [disabled]="currentPage === 0"
+            class="p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
             <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
           </button>
-          <button class="p-1 rounded border border-gray-300 bg-blue-50 text-blue-600">
-            1
-          </button>
-          <button class="p-1 rounded border border-gray-300 hover:bg-gray-50">
-            2
-          </button>
-          <button class="p-1 rounded border border-gray-300 hover:bg-gray-50">
-            3
-          </button>
-          <button class="p-1 rounded border border-gray-300 hover:bg-gray-50">
+
+          <!-- Page numbers with @for syntax -->
+          @for (page of getPageNumbers(); track page) {
+            <button
+              (click)="onPageChange(page)"
+              [class.bg-blue-50]="currentPage === page"
+              [class.text-blue-600]="currentPage === page"
+              [class.border-blue-200]="currentPage === page"
+              class="p-1 rounded border border-gray-300 hover:bg-gray-50 min-w-[2rem]">
+              {{ page + 1 }}
+            </button>
+          }
+
+          <!-- Next button -->
+          <button
+            (click)="onPageChange(currentPage + 1)"
+            [disabled]="currentPage >= totalPages - 1"
+            class="p-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
             <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
